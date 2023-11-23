@@ -4,7 +4,6 @@ import torch
 import mmengine
 from mmengine.runner import BaseLoop
 from mmengine.dist import get_dist_info, collect_results_gpu
-from engine.timers import Timer
 
 
 class BaseTestLoop(BaseLoop):
@@ -31,8 +30,6 @@ class BaseTestLoop(BaseLoop):
                 results, len(self.dataloader.dataset))
         if rank == 0:
             self.compute_metrics(results)
-            with open(f'{self.runner.log_dir}/time_info.txt', 'w') as file:
-                file.write(Timer.get_time_info())
 
     @torch.no_grad()
     def run_iter(self, idx, data_batch):

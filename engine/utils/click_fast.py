@@ -5,13 +5,11 @@ from typing import Optional, List, Tuple
 
 import torch
 
-from ..timers import Timer
 from .distance_fast import fast_mask_to_distance
 from .click import CLK_POSITIVE, CLK_NEGATIVE, CLK_MODES
 from .click import generate_single_click, generate_clicks
 
 
-@Timer('CLK')
 def fast_generate_single_click(pre_label: torch.Tensor,
                                seg_label: torch.Tensor,
                                points: Optional[List[Tuple]] = None,
@@ -27,88 +25,81 @@ def fast_generate_single_click(pre_label: torch.Tensor,
                         where 1.0 indicates the center of the erroneous region
     :return: tuple representing new click with format (y, x, mode)
     """
-    with Timer('Check'):
-        # Check types and shapes of input labels
-        if not isinstance(pre_label, torch.Tensor):
-            raise TypeError(f'Cannot handle type of pre_label: '
-                            f'{type(pre_label)}, expected torch.Tensor')
-        if not isinstance(seg_label, torch.Tensor):
-            raise TypeError(f'Cannot handle type of seg_label: '
-                            f'{type(seg_label)}, expected torch.Tensor')
-        if tuple(pre_label.shape) != tuple(seg_label.shape):
-            raise ValueError(f'`pre_label` and `seg_label` '
-                             f'are of different shapes: '
-                             f'{tuple(pre_label.shape)} and '
-                             f'{tuple(seg_label.shape)}')
-        if len(pre_label.shape) != 2:
-            raise ValueError(f'Both `pre_label` and `seg_label` are expected '
-                             f'to have the shape of (height, width), but got '
-                             f'shape {tuple(pre_label.shape)}')
+    # Check types and shapes of input labels
+    if not isinstance(pre_label, torch.Tensor):
+        raise TypeError(f'Cannot handle type of pre_label: '
+                        f'{type(pre_label)}, expected torch.Tensor')
+    if not isinstance(seg_label, torch.Tensor):
+        raise TypeError(f'Cannot handle type of seg_label: '
+                        f'{type(seg_label)}, expected torch.Tensor')
+    if tuple(pre_label.shape) != tuple(seg_label.shape):
+        raise ValueError(f'`pre_label` and `seg_label` '
+                         f'are of different shapes: '
+                         f'{tuple(pre_label.shape)} and '
+                         f'{tuple(seg_label.shape)}')
+    if len(pre_label.shape) != 2:
+        raise ValueError(f'Both `pre_label` and `seg_label` are expected '
+                         f'to have the shape of (height, width), but got '
+                         f'shape {tuple(pre_label.shape)}')
 
-        # Check validity of input points
-        if points is not None:
-            height, width = seg_label.shape
-            for y, x, mode in points:
-                if isinstance(float(y), float) \
-                        and isinstance(float(x), float) \
-                        and (0 <= y < height) \
-                        and (0 <= x < width) \
-                        and (mode in CLK_MODES):
-                    continue
-                raise ValueError(f'Found invalid point {(y, x, mode)} '
-                                 f'for {height}x{width} labels '
-                                 f'among points: {points}')
+    # Check validity of input points
+    if points is not None:
+        height, width = seg_label.shape
+        for y, x, mode in points:
+            if isinstance(float(y), float) \
+                    and isinstance(float(x), float) \
+                    and (0 <= y < height) \
+                    and (0 <= x < width) \
+                    and (mode in CLK_MODES):
+                continue
+            raise ValueError(f'Found invalid point {(y, x, mode)} '
+                             f'for {height}x{width} labels '
+                             f'among points: {points}')
 
-        # Calculate the distance scale based on sfc_inner_k
-        if sfc_inner_k >= 1.0:
-            dist_scale = 1 / (sfc_inner_k + torch.finfo(torch.float).eps)
-        elif sfc_inner_k < 0.0:
-            dist_scale = 0.0  # whole object area
-        else:
-            raise ValueError(f'Invalid sfc_inner_k: {sfc_inner_k}')
+    # Calculate the distance scale based on sfc_inner_k
+    if sfc_inner_k >= 1.0:
+        dist_scale = 1 / (sfc_inner_k + torch.finfo(torch.float).eps)
+    elif sfc_inner_k < 0.0:
+        dist_scale = 0.0  # whole object area
+    else:
+        raise ValueError(f'Invalid sfc_inner_k: {sfc_inner_k}')
 
     # Convert labels to numpy arrays
-    with Timer('Convert'):
-        pre_label = (pre_label == 1)
-        seg_label = (seg_label == 1)
+    pre_label = (pre_label == 1)
+    seg_label = (seg_label == 1)
 
     # Create ignore mask based on points
-    with Timer('IgnoreMask'):
-        ignore_mask = torch.zeros_like(pre_label)
-        if points is not None:
-            y_coords, x_coords = zip(*[(y, x) for y, x, _ in points])
-            y_tensor = torch.LongTensor(y_coords).to(ignore_mask.device)
-            x_tensor = torch.LongTensor(x_coords).to(ignore_mask.device)
-            ignore_mask[y_tensor, x_tensor] = True
+    ignore_mask = torch.zeros_like(pre_label)
+    if points is not None:
+        y_coords, x_coords = zip(*[(y, x) for y, x, _ in points])
+        y_tensor = torch.LongTensor(y_coords).to(ignore_mask.device)
+        x_tensor = torch.LongTensor(x_coords).to(ignore_mask.device)
+        ignore_mask[y_tensor, x_tensor] = True
 
     # Calculate erroneous regions and perform distance transform
-    with Timer('Logic'):
-        fneg = (~pre_label) & seg_label & (~ignore_mask)
-        fpos = pre_label & (~seg_label) & (~ignore_mask)
-    with Timer('Dist'):
-        ndist = fast_mask_to_distance(fneg, True)
-        pdist = fast_mask_to_distance(fpos, True)
+    fneg = (~pre_label) & seg_label & (~ignore_mask)
+    fpos = pre_label & (~seg_label) & (~ignore_mask)
+    ndist = fast_mask_to_distance(fneg, True)
+    pdist = fast_mask_to_distance(fpos, True)
 
     # Calculate maximum distances
-    with Timer('MaxDist'):
-        ndmax, pdmax = ndist.max(), pdist.max()
-        if ndmax.item() == pdmax.item() == 0:
-            return None, None, None
+    ndmax, pdmax = ndist.max(), pdist.max()
+    if ndmax.item() == pdmax.item() == 0:
+        return None, None, None
 
     # Determine click mode and points based on maximum distances
-    with Timer('SelectPoints'):
-        if ndmax > pdmax:
-            mode = CLK_POSITIVE
-            points = torch.nonzero(ndist > dist_scale * ndmax, as_tuple=False)
-        else:
-            mode = CLK_NEGATIVE
-            points = torch.nonzero(pdist > dist_scale * pdmax, as_tuple=False)
+    if ndmax > pdmax:
+        mode = CLK_POSITIVE
+        points = torch.nonzero(ndist > dist_scale * ndmax, as_tuple=False)
+    else:
+        mode = CLK_NEGATIVE
+        points = torch.nonzero(pdist > dist_scale * pdmax, as_tuple=False)
 
-        if points.size(0) == 0:
-            return None, None, None
+    if points.size(0) == 0:
+        return None, None, None
 
-        # Randomly choose a point from the points
-        y, x = points[random.choice(range(points.size(0)))].tolist()
+    # Randomly choose a point from the points
+    y, x = points[random.choice(range(points.size(0)))].tolist()
 
     return int(y), int(x), mode
 

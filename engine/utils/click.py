@@ -4,7 +4,6 @@ from typing import Optional, Union, List, Tuple
 import numpy as np
 import torch
 
-from ..timers import Timer
 from .distance import mask_to_distance
 from .distance_fast import fast_mask_to_distance
 
@@ -92,20 +91,18 @@ def generate_multiple_clicks(num_clicks: int,
         ignore_mask[y, x] = True
 
     # Calculate erroneous regions and perform distance transform
-    with Timer('Logic'):
-        fneg = np.logical_and(~pre_label, seg_label)
-        fpos = np.logical_and(pre_label, ~seg_label)
-        fneg = np.logical_and(fneg, ~ignore_mask)
-        fpos = np.logical_and(fpos, ~ignore_mask)
-    with Timer('Dist'):
-        if dist_mode == 'plain':
-            ndist = mask_to_distance(fneg, True)
-            pdist = mask_to_distance(fpos, True)
-        elif dist_mode == 'fast':
-            ndist = fast_mask_to_distance(fneg, True)
-            pdist = fast_mask_to_distance(fpos, True)
-        else:
-            raise NotImplementedError(f'Invalid mode: {dist_mode}')
+    fneg = np.logical_and(~pre_label, seg_label)
+    fpos = np.logical_and(pre_label, ~seg_label)
+    fneg = np.logical_and(fneg, ~ignore_mask)
+    fpos = np.logical_and(fpos, ~ignore_mask)
+    if dist_mode == 'plain':
+        ndist = mask_to_distance(fneg, True)
+        pdist = mask_to_distance(fpos, True)
+    elif dist_mode == 'fast':
+        ndist = fast_mask_to_distance(fneg, True)
+        pdist = fast_mask_to_distance(fpos, True)
+    else:
+        raise NotImplementedError(f'Invalid mode: {dist_mode}')
 
     # Calculate maximum distances
     ndmax, pdmax = ndist.max(), pdist.max()
@@ -131,7 +128,6 @@ def generate_multiple_clicks(num_clicks: int,
     return clicks
 
 
-@Timer('CLK')
 def generate_single_click(pre_label: Union[torch.Tensor, np.ndarray],
                           seg_label: Union[torch.Tensor, np.ndarray],
                           points: Optional[List[Tuple]] = None,
@@ -150,103 +146,96 @@ def generate_single_click(pre_label: Union[torch.Tensor, np.ndarray],
                       either 'plain' or 'fast'
     :return: tuple representing new click with format (y, x, mode)
     """
-    with Timer('Check'):
-        # Check types and shapes of input labels
-        if not isinstance(pre_label, (torch.Tensor, np.ndarray)):
-            raise TypeError(f'Cannot handle type of pre_label: '
-                            f'{type(pre_label)}')
-        if not isinstance(seg_label, (torch.Tensor, np.ndarray)):
-            raise TypeError(f'Cannot handle type of seg_label: '
-                            f'{type(seg_label)}')
-        if type(pre_label) != type(seg_label):
-            raise TypeError(
-                f'`pre_label` and `seg_label` are of different types: '
-                f'{type(pre_label)} and {type(seg_label)}')
-        if tuple(pre_label.shape) != tuple(seg_label.shape):
-            raise ValueError(f'`pre_label` and `seg_label` '
-                             f'are of different shapes: '
-                             f'{tuple(pre_label.shape)} and '
-                             f'{tuple(seg_label.shape)}')
-        if len(pre_label.shape) != 2:
-            raise ValueError(f'Both `pre_label` and `seg_label` are expected '
-                             f'to have the shape of (height, width), but got '
-                             f'shape {tuple(pre_label.shape)}')
-        if dist_mode not in ('plain', 'fast'):
-            raise ValueError(f'Invalid mode: {dist_mode}')
+    # Check types and shapes of input labels
+    if not isinstance(pre_label, (torch.Tensor, np.ndarray)):
+        raise TypeError(f'Cannot handle type of pre_label: '
+                        f'{type(pre_label)}')
+    if not isinstance(seg_label, (torch.Tensor, np.ndarray)):
+        raise TypeError(f'Cannot handle type of seg_label: '
+                        f'{type(seg_label)}')
+    if type(pre_label) != type(seg_label):
+        raise TypeError(
+            f'`pre_label` and `seg_label` are of different types: '
+            f'{type(pre_label)} and {type(seg_label)}')
+    if tuple(pre_label.shape) != tuple(seg_label.shape):
+        raise ValueError(f'`pre_label` and `seg_label` '
+                         f'are of different shapes: '
+                         f'{tuple(pre_label.shape)} and '
+                         f'{tuple(seg_label.shape)}')
+    if len(pre_label.shape) != 2:
+        raise ValueError(f'Both `pre_label` and `seg_label` are expected '
+                         f'to have the shape of (height, width), but got '
+                         f'shape {tuple(pre_label.shape)}')
+    if dist_mode not in ('plain', 'fast'):
+        raise ValueError(f'Invalid mode: {dist_mode}')
 
-        # Check validity of input points
-        if points is not None:
-            height, width = seg_label.shape
-            for y, x, mode in points:
-                if isinstance(float(y), float) \
-                        and isinstance(float(x), float) \
-                        and (0 <= y < height) \
-                        and (0 <= x < width) \
-                        and (mode in CLK_MODES):
-                    continue
-                raise ValueError(f'Found invalid point {(y, x, mode)} '
-                                 f'for {height}x{width} labels '
-                                 f'among points: {points}')
+    # Check validity of input points
+    if points is not None:
+        height, width = seg_label.shape
+        for y, x, mode in points:
+            if isinstance(float(y), float) \
+                    and isinstance(float(x), float) \
+                    and (0 <= y < height) \
+                    and (0 <= x < width) \
+                    and (mode in CLK_MODES):
+                continue
+            raise ValueError(f'Found invalid point {(y, x, mode)} '
+                             f'for {height}x{width} labels '
+                             f'among points: {points}')
 
-        # Calculate the distance scale based on sfc_inner_k
-        if sfc_inner_k >= 1.0:
-            dist_scale = 1 / (sfc_inner_k + torch.finfo(torch.float).eps)
-        elif sfc_inner_k < 0.0:
-            dist_scale = 0.0  # whole object area
-        else:
-            raise ValueError(f'Invalid sfc_inner_k: {sfc_inner_k}')
+    # Calculate the distance scale based on sfc_inner_k
+    if sfc_inner_k >= 1.0:
+        dist_scale = 1 / (sfc_inner_k + torch.finfo(torch.float).eps)
+    elif sfc_inner_k < 0.0:
+        dist_scale = 0.0  # whole object area
+    else:
+        raise ValueError(f'Invalid sfc_inner_k: {sfc_inner_k}')
 
     # Convert labels to numpy arrays
-    with Timer('Convert'):
-        if isinstance(pre_label, torch.Tensor):
-            pre_label = pre_label.detach().cpu().numpy()
-            seg_label = seg_label.detach().cpu().numpy()
-        pre_label = (pre_label == 1)
-        seg_label = (seg_label == 1)
+    if isinstance(pre_label, torch.Tensor):
+        pre_label = pre_label.detach().cpu().numpy()
+        seg_label = seg_label.detach().cpu().numpy()
+    pre_label = (pre_label == 1)
+    seg_label = (seg_label == 1)
 
     # Create ignore mask based on points
-    with Timer('IgnoreMask'):
-        ignore_mask = np.zeros_like(pre_label, dtype=bool)
-        for y, x, _ in (list() if points is None else points):
-            ignore_mask[y, x] = True
+    ignore_mask = np.zeros_like(pre_label, dtype=bool)
+    for y, x, _ in (list() if points is None else points):
+        ignore_mask[y, x] = True
 
     # Calculate erroneous regions and perform distance transform
-    with Timer('Logic'):
-        fneg = np.logical_and(~pre_label, seg_label)
-        fpos = np.logical_and(pre_label, ~seg_label)
-        fneg = np.logical_and(fneg, ~ignore_mask)
-        fpos = np.logical_and(fpos, ~ignore_mask)
-    with Timer('Dist'):
-        if dist_mode == 'plain':
-            ndist = mask_to_distance(fneg, True)
-            pdist = mask_to_distance(fpos, True)
-        elif dist_mode == 'fast':
-            ndist = fast_mask_to_distance(fneg, True)
-            pdist = fast_mask_to_distance(fpos, True)
-        else:
-            raise NotImplementedError(f'Invalid mode: {dist_mode}')
+    fneg = np.logical_and(~pre_label, seg_label)
+    fpos = np.logical_and(pre_label, ~seg_label)
+    fneg = np.logical_and(fneg, ~ignore_mask)
+    fpos = np.logical_and(fpos, ~ignore_mask)
+    if dist_mode == 'plain':
+        ndist = mask_to_distance(fneg, True)
+        pdist = mask_to_distance(fpos, True)
+    elif dist_mode == 'fast':
+        ndist = fast_mask_to_distance(fneg, True)
+        pdist = fast_mask_to_distance(fpos, True)
+    else:
+        raise NotImplementedError(f'Invalid mode: {dist_mode}')
 
     # Calculate maximum distances
-    with Timer('MaxDist'):
-        ndmax, pdmax = ndist.max(), pdist.max()
-        if ndmax == pdmax == 0:
-            return None, None, None
+    ndmax, pdmax = ndist.max(), pdist.max()
+    if ndmax == pdmax == 0:
+        return None, None, None
 
     # Determine click mode and points based on maximum distances
-    with Timer('SelectPoints'):
-        if ndmax > pdmax:
-            mode = CLK_POSITIVE
-            points = np.argwhere(ndist > dist_scale * ndmax)
-        else:
-            mode = CLK_NEGATIVE
-            points = np.argwhere(pdist > dist_scale * pdmax)
+    if ndmax > pdmax:
+        mode = CLK_POSITIVE
+        points = np.argwhere(ndist > dist_scale * ndmax)
+    else:
+        mode = CLK_NEGATIVE
+        points = np.argwhere(pdist > dist_scale * pdmax)
 
-        if len(points) == 0:
-            return None, None, None
+    if len(points) == 0:
+        return None, None, None
 
-        # Randomly choose a point from the points
-        y, x = random.choice(list(map(tuple, points.tolist())))
-        return int(y), int(x), mode
+    # Randomly choose a point from the points
+    y, x = random.choice(list(map(tuple, points.tolist())))
+    return int(y), int(x), mode
 
 
 def generate_clicks(pre_labels: Union[torch.Tensor, np.ndarray],
