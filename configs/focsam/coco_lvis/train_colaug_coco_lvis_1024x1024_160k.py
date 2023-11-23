@@ -5,7 +5,7 @@ batch_size = 4
 train_dataloader = dict(batch_size=batch_size, num_workers=batch_size)
 model = dict(
     type='ClickMixSegmentorRefine',
-    remove_backbone=True,
+    remove_backbone=False,
     init_cfg=dict(type='Pretrained',
                   checkpoint='work_dirs/sam/coco_lvis/'
                              'train_colaug_coco_lvis_1024x1024_320k/'
