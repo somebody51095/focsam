@@ -44,3 +44,6 @@ for dir in "${directories[@]}"; do
         echo "Warning: Directory $dir does not exist. Skipping installation."
     fi
 done
+
+# 6) Install other dependencies
+pip install -r requirements.txt
