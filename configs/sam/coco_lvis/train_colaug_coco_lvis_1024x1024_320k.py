@@ -5,7 +5,7 @@ batch_size = 4
 train_dataloader = dict(batch_size=batch_size, num_workers=batch_size)
 model = dict(
     type='ClickMixSegmentorDecode',
-    remove_backbone=True,
+    remove_backbone=False,
     init_cfg=dict(type='Pretrained',
                   checkpoint='pretrain/sam_pretrain_vit_huge.pth'),  # SAM pretrained
     image_embed_loader=dict(
