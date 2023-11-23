@@ -8,6 +8,7 @@ import mmengine
 from mmengine.registry import Registry
 from mmengine.dist import get_dist_info, collect_results_gpu
 from engine.segmentors import EmptyBackbone
+from engine.timers import Timer
 
 
 EMBED_LOADERS = Registry('embed_loader')
@@ -39,6 +40,7 @@ class BaseEmbedLoader(object):
             self.prefixes = set()
 
     @torch.no_grad()
+    @Timer('LoadEmbeds')
     def __call__(self, inputs, data_samples):
         embeds = [None for _ in data_samples]
         prefixes = set()
@@ -82,6 +84,8 @@ class BaseEmbedLoader(object):
                         self.prefix_to_embed_file(prefix), embed.cpu().numpy())
                 embeds[idx] = embed
                 prefixes.add(prefix)
+        else:
+            update_flag = False
 
         if update_flag:
             self.update_prefixes(prefixes, inputs.device)
@@ -102,6 +106,7 @@ class BaseEmbedLoader(object):
     def meta_file(self):
         return self.embed_dir / 'meta-info.json'
 
+    @Timer('UpdatePrefixes')
     def update_prefixes(self, prefixes, device):
         prefixes = list(prefixes)
         if self.world_size > 1:

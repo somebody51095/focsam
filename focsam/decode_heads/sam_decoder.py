@@ -6,6 +6,7 @@ from mmseg.models.builder import HEADS
 from engine.utils import rearrange, repeat
 from engine.utils.xformers import memory_efficient_attention
 from engine.decode_heads import BaseDecodeHead
+from engine.timers import Timer
 
 
 class TwoLayerMLP(nn.Module):
@@ -248,6 +249,7 @@ class SAMDecoder(BaseDecodeHead):
         else:
             raise NotImplementedError
 
+    @Timer('SAMDecoder')
     def stem(self, inputs):
         image_embeds = inputs['image_embeds']
         image_pos_embeds = inputs['image_pos_embeds']
@@ -303,6 +305,7 @@ class SAMDecoderForRefiner(SAMDecoder):
         else:
             raise NotImplementedError
 
+    @Timer('SAMDecoder')
     def stem(self, inputs):
         image_embeds = inputs['image_embeds']
         image_pos_embeds = inputs['image_pos_embeds']

@@ -29,3 +29,5 @@ log_processor = dict(window_size=1000, by_epoch=False)
 log_level = 'INFO'
 load_from = None
 resume = False
+
+custom_hooks = [dict(type='SimpleTimeLoggerHook')]  # evaluate time of each step

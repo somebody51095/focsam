@@ -13,6 +13,7 @@ from engine.utils.resize import resize_along_longest_side
 from engine.utils.resize import resize_image_along_longest_size
 from engine.utils.resize import resize_coord_along_longest_size
 from engine.segmentors import BaseInterSegmentor, EmptyBackbone
+from engine.timers import Timer
 from ..embed_loaders import EMBED_LOADERS
 
 
@@ -93,6 +94,7 @@ class BaseClickSegmentor(BaseInterSegmentor):
         probs /= probs.sum()
         return np.random.choice(range(len(probs)), p=probs)
 
+    @Timer('Preprocess')
     def preprocess_inputs(self, inputs, data_samples):
         if self.image_embed_loader is not None:
             return self.image_embed_loader(inputs, data_samples)
@@ -102,6 +104,7 @@ class BaseClickSegmentor(BaseInterSegmentor):
                                  f'but `backbone` is EmptyBackbone.')
             return self.backbone(inputs)
 
+    @Timer('EncodeDecode')
     def encode_decode(self, inputs, data_samples,
                       image_embeds=None, **inter_info):
         if image_embeds is None:
@@ -156,6 +159,7 @@ class BaseClickSegmentor(BaseInterSegmentor):
             raise NotImplementedError(f'Unknown type {type(x)}')
 
     @staticmethod
+    @Timer('UpdateClicks')
     def update_clicks(pre_label,
                       seg_label,
                       points_list,

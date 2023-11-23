@@ -9,6 +9,7 @@ from mmseg.models.builder import HEADS
 
 from engine.utils import rearrange, repeat, reduce, memory_efficient_attention
 from engine.utils import get_bbox_from_mask, expand_bbox, convert_bbox_to_mask
+from engine.timers import Timer
 
 
 class Attention(nn.Module):
@@ -24,6 +25,7 @@ class Attention(nn.Module):
         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=True)
         self.proj = nn.Linear(embed_dim, embed_dim, bias=True)
 
+    @Timer('Attention')
     def forward(self, q, k, v):
         q = self.q_proj(q)
         k = self.k_proj(k)
@@ -59,6 +61,7 @@ class CrossAttentionBlock(nn.Module):
             nn.Linear(int(mlp_ratio * embed_dim), embed_dim))
         self.gamma2 = nn.Parameter(torch.ones(embed_dim).float())
 
+    @Timer('CrossAttentionBlock')
     def forward(self, q, kv):
         x = q
         q = self.norm_q(q)
@@ -88,6 +91,7 @@ class PDyReLU(nn.Module):
             nn.Linear(channels, 2 * channels, bias=True),
             nn.Tanh())
 
+    @Timer('PDyReLU')
     def forward(self, x, cls):
         """
         :param x: shape (B, N, C)
@@ -158,6 +162,7 @@ class DeformLayer(nn.Module):
             deform_groups=deform_num_groups)
         self.c2_msra_fill(self.dcn)
 
+    @Timer('DeformConv')
     def forward(self, x):
         if self.modulate_deform:
             offset_mask = self.dcn_offset(x)
@@ -203,6 +208,7 @@ class MSAModule(nn.Module):
         self.gamma1 = nn.Parameter(torch.ones(1, embed_dim, 1, 1).float())
         self.gamma2 = nn.Parameter(torch.ones(1, embed_dim, 1, 1).float())
 
+    @Timer('MSAModule')
     def forward(self, x, cls):
         """
         :param x: shape (B, C, H, W)
@@ -411,6 +417,7 @@ class FocusRefiner(nn.Module):
                              f'{tuple(mask_token.shape)}')
         return self.stem(image_embeds, mask_token, mask)
 
+    @Timer('FocusRefiner')
     def stem(self, image_embeds, mask_token, mask):
         """
         :param image_embeds: shape (B, C, H, W)

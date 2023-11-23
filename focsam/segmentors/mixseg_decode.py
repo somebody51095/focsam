@@ -5,6 +5,7 @@ import torch
 
 from mmseg.registry import MODELS
 from mmseg.utils import add_prefix
+from engine.timers import Timer
 from .base import BaseClickSegmentor
 
 
@@ -29,6 +30,7 @@ class ClickMixSegmentorDecode(BaseClickSegmentor):
         return max_num_clicks, gamma
 
     @torch.no_grad()
+    @Timer('Simulate')
     def interact_simulate_on_single_dataset(self, inputs,
                                             data_samples, dataset):
         cfg = self.train_cfg

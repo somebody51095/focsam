@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from mmengine.model import BaseModule
 from mmseg.models.builder import BACKBONES
 from engine.utils import rearrange, memory_efficient_attention
+from engine.timers import Timer
 
 
 class TwoLayerMLP(nn.Module):
@@ -306,6 +307,7 @@ class SAMWindowViT(BaseModule):
         elif pretrained is not None:
             raise TypeError('pretrained must be a str or None')
 
+    @Timer('SAMEncoder')
     def forward(self, x):
         x = self.patch_embed(x)
         if self.pos_embed is not None:
