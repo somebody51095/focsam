@@ -7,7 +7,7 @@ from pathlib import Path
 
 import torch
 from mmengine.config import Config
-from mmengine.runner import Runner
+from mmengine.runner import Runner, set_random_seed
 from mmengine.dist import get_dist_info
 
 
@@ -32,6 +32,8 @@ def parse_args():
     # will pass the `--local-rank` parameter to `tools/train.py` instead
     # of `--local_rank`.
     parser.add_argument('--local_rank', '--local-rank', type=int, default=0)
+    parser.add_argument('--seed', type=int, default=42,
+                        help='To eliminate very slight randomness')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -100,6 +102,9 @@ def main():
 
     # build the runner from config
     runner = Runner.from_cfg(cfg)
+
+    # to eliminate very slight randomness
+    set_random_seed(args.seed)
 
     # start testing
     runner.test()
