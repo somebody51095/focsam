@@ -3,12 +3,13 @@ from pathlib import Path
 
 import numpy as np
 import torch
-import torch.distributed as dist
+
 import mmengine
 from mmengine.registry import Registry
-from mmengine.dist import get_dist_info, collect_results_gpu
+from mmengine.dist import get_dist_info
 from engine.segmentors import EmptyBackbone
 from engine.timers import Timer
+from .utils import collect_strings, broadcast_strings
 
 
 EMBED_LOADERS = Registry('embed_loader')
@@ -110,9 +111,8 @@ class BaseEmbedLoader(object):
     def update_prefixes(self, prefixes, device):
         prefixes = list(prefixes)
         if self.world_size > 1:
-            prefixes = collect_results_gpu(
-                prefixes, self.world_size * len(prefixes))
-            prefixes = self.broadcast_prefixes(prefixes, device)
+            prefixes = collect_strings(prefixes)
+            prefixes = broadcast_strings(prefixes)
         update_flag = False
         for prefix in prefixes:
             if prefix not in self.prefixes:
@@ -124,19 +124,3 @@ class BaseEmbedLoader(object):
     def dump_meta_info(self):
         if self.rank == 0 and len(self.prefixes) > 0:
             mmengine.dump(dict(prefixes=self.prefixes), self.meta_file)
-
-    def broadcast_prefixes(self, prefixes, device):
-        PS = '<PS>'
-        tensor_repr = torch.zeros(
-            self.string_broadcast_length, dtype=torch.int8)
-        if self.rank == 0:
-            flat_str = PS.join(prefixes)
-            byte_repr = flat_str.encode('ascii')
-            tensor_repr[:len(byte_repr)] = torch.tensor(list(byte_repr))
-        tensor_repr = tensor_repr.to(device)
-
-        dist.broadcast(tensor_repr, src=0)
-
-        byte_list = tensor_repr[tensor_repr != 0].tolist()
-        flat_str = bytes(byte_list).decode('ascii')
-        return list(flat_str.split(PS))
