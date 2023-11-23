@@ -1,5 +1,6 @@
 import random
 import warnings
+import time
 from pathlib import Path
 
 import cv2
@@ -171,6 +172,9 @@ class LVISDataset(BaseInterSegDataset):
                     if get_dist_info()[0] == 0:
                         mmengine.dump(dict(segments_info=ann_infos[prefix]),
                                       segments_info_file)
+                    else:
+                        while not Path(segments_info_file).is_file():
+                            time.sleep(1)
                     data_list.append(
                         dict(img_path=str(img_files[prefix]),
                              seg_map_path=None,
