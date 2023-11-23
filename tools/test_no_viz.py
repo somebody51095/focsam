@@ -88,6 +88,7 @@ def main():
     cfg.work_dir = work_dir
     cfg.launcher = args.launcher
     cfg.load_from = str(checkpoint)
+    cfg.resume = False
 
     if hasattr(cfg.model, 'remove_backbone') and cfg.model.remove_backbone:
         cfg.model.remove_backbone = False
