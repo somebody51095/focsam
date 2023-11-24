@@ -78,7 +78,7 @@ data/
 
 
 ### SBD
-The SBD dataset is available for download at [SBD](http://home.bharathh.info/pubs/codes/SBD/download.html).
+The SBD dataset is available for download at [official site](http://home.bharathh.info/pubs/codes/SBD/download.html) or [GoogleDrive](https://drive.google.com/file/d/1ISoYjyxeut3tlSGimuG3jr9RklwfnBV5/view?usp=sharing)
 
 The data is organized as follows:
 ```
