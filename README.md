@@ -9,6 +9,22 @@ This repository contains the implementation for
 > FocSAM: Delving Deeply into Focused Objects in Segmenting Anything
 
 
+# Demo
+The following GIF animations display a comparison of interactive segmentation results between SAM and our FocSAM. Notably, FocSAM demonstrates a remarkably stable performance with significantly less fluctuation in IoU compared to SAM, across various datasets.
+
+
+<img src="resources/result-2008_002715.gif" width="250" height="250"/><img src="resources/result-2009_002177.gif" width="250" height="250"/><img src="resources/result-2009_004203.gif" width="250" height="250"/> 
+
+
+<img src="resources/result-2010_000197.gif" width="250" height="250"/><img src="resources/result-cable_cut_inner_insulation_007.gif" width="250" height="250"/><img src="resources/result-capsule_squeeze_004.gif" width="250" height="250"/> 
+
+
+<img src="resources/result-COD10K-CAM-1-Aquatic-13-Pipefish-836.gif" width="250" height="250"/><img src="resources/result-COD10K-CAM-3-Flying-53-Bird-3089.gif" width="250" height="250"/><img src="resources/result-COD10K-CAM-3-Flying-53-Bird-3141.gif" width="250" height="250"/>
+
+
+<img src="resources/result-grid_bent_005.gif" width="250" height="250"/><img src="resources/result-transistor_bent_lead_007.gif" width="250" height="250"/><img src="resources/result-zipper_combined_000.gif" width="250" height="250"/>
+
+
 # Installation
 
 For detailed installation instructions, please refer to [INSTALL](INSTALL.md).
