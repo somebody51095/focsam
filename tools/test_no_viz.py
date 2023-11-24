@@ -34,6 +34,7 @@ def parse_args():
     parser.add_argument('--local_rank', '--local-rank', type=int, default=0)
     parser.add_argument('--seed', type=int, default=42,
                         help='To eliminate very slight randomness')
+    parser.add_argument('--use-image-embed-loader', action='store_true')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -94,6 +95,17 @@ def main():
 
     if hasattr(cfg.model, 'remove_backbone') and cfg.model.remove_backbone:
         cfg.model.remove_backbone = False
+
+    if args.use_image_embed_loader:
+        if not hasattr(cfg.model, 'image_embed_loader'):
+            raise AttributeError(
+                'Not found "image_embed_loader" in the model config.')
+        elif cfg.model.embed_loader is None:
+            raise AttributeError(
+                '"image_embed_loader" is None in the model config.')
+    else:
+        if hasattr(cfg.model, 'image_embed_loader'):
+            cfg.model.image_embed_loader = None
 
     if args.tta:
         cfg.test_dataloader.dataset.pipeline = cfg.tta_pipeline
