@@ -61,7 +61,7 @@ python tools/test_no_viz.py configs/_base_/eval_davis.py work_dirs/focsam/focsam
 ```
 - Multi-GPU:
 ```shell
-bash tools/dist_test.sh configs/_base_/eval_davis.py work_dirs/focsam/focsam_vit_huge_eval/iter_160000.pth 4 --eval mIoU
+bash tools/dist_test.sh configs/_base_/eval_davis.py work_dirs/focsam/focsam_vit_huge_eval/iter_160000.pth 4
 ```
 - CPU (Not recommended):
 ```shell
